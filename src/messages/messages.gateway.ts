@@ -20,12 +20,22 @@ export class MessagesGateway implements OnGatewayInit {
 
   /**
    * @description send a private message
-   * accepts a message and the id of the receiver (socketId), then send the message to that specific user only
-   * @params data {message: string, receiverId: string}
+   * accepts a message and the id of the room (specific socketId or custom roomId), then send the message to that specific user only
+   * @params data {message: string, roomId: string}
    */
   @SubscribeMessage('message:private:send')
-  handlePrivateMessage(@MessageBody() data: { message: string, receiverId: string }, @ConnectedSocket() socket: Socket) {
-    socket.to(data.receiverId).emit('message:private:receive', data);
+  handlePrivateMessage(@MessageBody() data: { message: string, roomId: string }, @ConnectedSocket() socket: Socket) {
+    socket.to(data.roomId).emit('message:private:receive', data);
+  }
+
+  /**
+   * @description join a conversation
+   * accepts the id of the conversation (can be any), this helps creating custom room, so the users can have private group chat instead of one-to-one private chat
+   * by default each client is connected to the their socket.id room, joining another room makes them available in that room also
+   */
+  @SubscribeMessage('conversation:join')
+  handleConversationJoin(@MessageBody() data: string, @ConnectedSocket() socket: Socket) {
+    socket.join(data);
   }
 
 }
