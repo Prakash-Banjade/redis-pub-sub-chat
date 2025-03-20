@@ -1,0 +1,25 @@
+version: '3.1'
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: "no"
+    container_name: socket-pub-sub-redis
+    ports:
+      - '6381:6379'
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=myREDIS
+    command: redis-server --save 20 1 --loglevel warning
+    volumes:
+      - cache:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+volumes:
+  cache:
+    driver: local

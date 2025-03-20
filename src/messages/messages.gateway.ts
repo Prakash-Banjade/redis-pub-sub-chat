@@ -1,10 +1,17 @@
 import { ConnectedSocket, MessageBody, OnGatewayInit, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { PubSubService } from 'src/pub-sub/pub-sub.service';
 
 @WebSocketGateway()
 export class MessagesGateway implements OnGatewayInit {
   @WebSocketServer()
   server: Server;
+
+  constructor(private pubSubService: PubSubService) {
+    this.pubSubService.subscribe('chat', (message) => {
+      this.server.emit('message', message);
+    });
+  }
 
   afterInit(server: Server) {
     server.on('connection', (socket) => {
@@ -12,10 +19,24 @@ export class MessagesGateway implements OnGatewayInit {
     });
   }
 
+  /**
+   * Not scalable approach
+   */
+  // @SubscribeMessage('message:send')
+  // handleMessage(@MessageBody() data: string, @ConnectedSocket() socket: Socket) {
+  //   socket.broadcast.emit('message:receive', data); // Broadcast the message to all connected clients except the sender, 
+  //   // if we use this.server.emit(), this will broadcast the message to all connected clients including the sender
+  // }
+
+  /**
+   * Scalable approach
+   */
   @SubscribeMessage('message:send')
   handleMessage(@MessageBody() data: string, @ConnectedSocket() socket: Socket) {
-    socket.broadcast.emit('message:receive', data); // Broadcast the message to all connected clients except the sender, 
-    // if we use this.server.emit(), this will broadcast the message to all connected clients including the sender
+    //   socket.broadcast.emit('message:receive', data); // Broadcast the message to all connected clients except the sender, 
+
+    // Publish the message to the Redis channel
+    this.pubSubService.publish('chat', JSON.stringify(data));
   }
 
   /**
