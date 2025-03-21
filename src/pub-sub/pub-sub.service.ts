@@ -29,7 +29,7 @@ export class PubSubService {
 
     subscribe(channel: string, callback: (message: string) => void): void {
         this.subscriber.subscribe(channel);
-        this.subscriber.on('message', (receivedChannel, receivedMessage) => {
+        this.subscriber.on('message', (receivedChannel, receivedMessage) => { // listening for any messages via 'message' listener
             if (receivedChannel === channel) {
                 callback(receivedMessage);
             }

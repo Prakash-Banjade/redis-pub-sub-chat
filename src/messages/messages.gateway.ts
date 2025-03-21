@@ -7,9 +7,25 @@ export class MessagesGateway implements OnGatewayInit {
   @WebSocketServer()
   server: Server;
 
+  private readonly REDIS_CHAT_CHANNEL = 'chat';
+
   constructor(private pubSubService: PubSubService) {
-    this.pubSubService.subscribe('chat', (message) => {
-      this.server.emit('message', message);
+    this.pubSubService.subscribe(this.REDIS_CHAT_CHANNEL, (message) => { // each instance of the server will subscribe to the 'chat' channel in the redis
+      try {
+        const roomId = JSON.parse(message).roomId;
+        const socketId = JSON.parse(message).socketId;
+        const senderSocket = this.server.sockets.sockets.get(socketId);
+
+        if (!roomId) {
+          return this.server.emit('message:receive', message); // Broadcast the message to all connected clients
+        }
+
+        if (!senderSocket) {
+          return this.server.to(roomId).emit('message:receive', message); // Broadcast the message to all connected clients in the room including sender
+        }
+
+        senderSocket.to(roomId).emit('message:receive', message); // Broadcast the message to all connected clients in the room except sender
+      } catch (e) { }
     });
   }
 
@@ -23,7 +39,7 @@ export class MessagesGateway implements OnGatewayInit {
    * Not scalable approach
    */
   // @SubscribeMessage('message:send')
-  // handleMessage(@MessageBody() data: string, @ConnectedSocket() socket: Socket) {
+  // handleMessage(@MessageBody() data: any, @ConnectedSocket() socket: Socket) {
   //   socket.broadcast.emit('message:receive', data); // Broadcast the message to all connected clients except the sender, 
   //   // if we use this.server.emit(), this will broadcast the message to all connected clients including the sender
   // }
@@ -32,21 +48,12 @@ export class MessagesGateway implements OnGatewayInit {
    * Scalable approach
    */
   @SubscribeMessage('message:send')
-  handleMessage(@MessageBody() data: string, @ConnectedSocket() socket: Socket) {
-    //   socket.broadcast.emit('message:receive', data); // Broadcast the message to all connected clients except the sender, 
-
+  handleMessage(@MessageBody() data: any, @ConnectedSocket() socket: Socket) {
     // Publish the message to the Redis channel
-    this.pubSubService.publish('chat', JSON.stringify(data));
-  }
-
-  /**
-   * @description send a private message
-   * accepts a message and the id of the room (specific socketId or custom roomId), then send the message to that specific user only
-   * @params data {message: string, roomId: string}
-   */
-  @SubscribeMessage('message:private:send')
-  handlePrivateMessage(@MessageBody() data: { message: string, roomId: string }, @ConnectedSocket() socket: Socket) {
-    socket.to(data.roomId).emit('message:private:receive', data);
+    this.pubSubService.publish(this.REDIS_CHAT_CHANNEL, JSON.stringify({ // publish the message to the 'chat' channel in the redis
+      ...data,
+      socketId: socket.id
+    }));
   }
 
   /**

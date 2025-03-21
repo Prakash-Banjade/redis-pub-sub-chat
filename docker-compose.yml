@@ -19,6 +19,39 @@ services:
       interval: 10s
       retries: 5
       timeout: 5s
+  app1:
+    build: .
+    restart: "no"
+    container_name: socket-pub-sub-app-1
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    ports:
+      - 3002:3000
+    depends_on:
+      - redis
+  app2:
+    build: .
+    restart: "no"
+    container_name: socket-pub-sub-app-2
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    ports:
+      - 3003:3000
+    depends_on:
+      - redis
+  app3:
+    build: .
+    restart: "no"
+    container_name: socket-pub-sub-app-3
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    ports:
+      - 3004:3000
+    depends_on:
+      - redis
 
 volumes:
   cache:
