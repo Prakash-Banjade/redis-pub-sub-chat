@@ -4,7 +4,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: "no"
-    container_name: socket-pub-sub-redis
+    container_name: test_redis
     ports:
       - '6381:6379'
     environment:
@@ -19,40 +19,74 @@ services:
       interval: 10s
       retries: 5
       timeout: 5s
-  app1:
-    build: .
-    restart: "no"
-    container_name: socket-pub-sub-app-1
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+
+  zookeeper:
+    image: zookeeper
+    container_name: test_zookeeper
     ports:
-      - 3002:3000
+      - "2181:2181"
+    restart: always
+
+  kafka:
+    image: confluentinc/cp-kafka
+    container_name: test_kafka
     depends_on:
-      - redis
-  app2:
-    build: .
-    restart: "no"
-    container_name: socket-pub-sub-app-2
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - zookeeper
     ports:
-      - 3003:3000
-    depends_on:
-      - redis
-  app3:
-    build: .
-    restart: "no"
-    container_name: socket-pub-sub-app-3
+      - "9092:9092"
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1 # no. of brokers
+    restart: "no"
+
+  db:
+    image: postgres
+    container_name: test_db
     ports:
-      - 3004:3000
-    depends_on:
-      - redis
+      - "5433:5432"
+    environment:
+      - POSTGRES_PASSWORD=pgsql
+      - POSTGRES_DB=testDB
+    volumes:
+      - postgres:/var/lib/postgresql/data
+  # multiple instances of the same app
+  # app1:
+  #   build: .
+  #   restart: "no"
+  #   container_name: socket-pub-sub-app-1
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #   ports:
+  #     - 3002:3000
+  #   depends_on:
+  #     - redis
+  # app2:
+  #   build: .
+  #   restart: "no"
+  #   container_name: socket-pub-sub-app-2
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #   ports:
+  #     - 3003:3000
+  #   depends_on:
+  #     - redis
+  # app3:
+  #   build: .
+  #   restart: "no"
+  #   container_name: socket-pub-sub-app-3
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #   ports:
+  #     - 3004:3000
+  #   depends_on:
+  #     - redis
 
 volumes:
+  postgres:
   cache:
     driver: local
